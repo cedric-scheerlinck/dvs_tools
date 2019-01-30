@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
   std::string bag_name = dvs_reverse_events::utils::extract_bag_name(
       path_to_input_rosbag);
 
-  std::string path_to_output_rosbag = path_to_input_rosbag + ".filtered";
+  std::string path_to_output_rosbag = path_to_input_rosbag + ".reversed";
 
   rosbag::Bag input_bag;
   try
