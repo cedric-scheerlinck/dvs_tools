@@ -23,15 +23,6 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  if (FLAGS_n_hot_pix == -1)
-  {
-    std::cout << "Number of hot pixels will be determined automatically\n"
-        "by thresholding event_count > " << FLAGS_n_std << " STD (standard deviations)" << std::endl;
-  } else
-  {
-    std::cout << "The " << FLAGS_n_hot_pix << " hottest pixel(s) will be removed" << std::endl;
-  }
-
   std::string bag_name = dvs_reverse_events::utils::extract_bag_name(
       path_to_input_rosbag);
 
@@ -62,8 +53,6 @@ int main(int argc, char* argv[])
   dvs_reverse_events::utils::reverse_event_timestamps(events_by_topic);
 
 //  dvs_reverse_events::utils::write_all_msgs(view, events_by_topic, output_bag);
-
-  std::cout << "Computing stats..." << std::endl;
 
   output_bag.close();
   input_bag.close();
