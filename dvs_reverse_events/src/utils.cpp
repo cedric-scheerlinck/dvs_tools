@@ -9,7 +9,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 
-DECLARE_bool(no_stats);
+DECLARE_bool(mirror);
 
 namespace dvs_reverse_events {
 namespace utils {
@@ -75,13 +75,41 @@ void reverse_event_timestamps(topic_events& events_by_topic)
   {
     const std::string topic_name = topic.first;
     std::vector<dvs_msgs::Event>& event_vec = topic.second;
+    if (FLAGS_mirror)
+    {
+      const double largest_time = event_vec.back().ts.toSec();
+      for (auto& e : event_vec)
+      {
+        double ts = e.ts.toSec();
+        ts = -ts + largest_time;
+        e.ts = ros::Time(ts);
+      }
+    }
+    else
+    {
+      const int length = event_vec.size();
+      const int midpoint = static_cast<int>(length/2);
+      for (int i = 0; i < midpoint; i++)
+      {
+        const ros::Time tmp = event_vec[i].ts;
+        event_vec[i].ts = event_vec[length - i - 1].ts;
+        event_vec[length - i].ts = tmp;
+      }
+    }
+  }
+}
+
+void flip_polarity(topic_events& events_by_topic)
+{
+  for(auto& topic : events_by_topic)
+  {
+    const std::string topic_name = topic.first;
+    std::vector<dvs_msgs::Event>& event_vec = topic.second;
     const int length = event_vec.size();
     const int midpoint = static_cast<int>(length/2);
-    for (int i = 0; i < midpoint; i++)
+    for (auto& e : event_vec)
     {
-      const ros::Time tmp = event_vec[i].ts;
-      event_vec[i].ts = event_vec[length - i - 1].ts;
-      event_vec[length - i].ts = tmp;
+      e.polarity = !e.polarity;
     }
   }
 }
@@ -363,47 +391,48 @@ void write_hot_pixels(const std::string filename,
   hot_pixels_file.close();
 }
 
-void save_stats(const std::string bag_name,
-                 const std::string topic_name,
-                 const cv::Mat& histogram,
-                 const std::vector<cv::Point>& hot_pixels,
-                 const bool one_topic)
-{
-  cv::Mat histogram_after;
-  histogram.copyTo(histogram_after);
-  for (auto point : hot_pixels)
-  {
-    histogram_after.at<double>(point) = 0;
-  }
-
-  const double num_events = cv::sum(histogram)[0];
-  const double num_events_after = cv::sum(histogram_after)[0];
-  const double percent_events_discarded = (1 - num_events_after/num_events)*100;
-
-  std::cout << std::setprecision(4) << topic_name << "\t" << num_events <<
-      "\t" << hot_pixels.size() << "\t\t0\t(before)" << std::endl;
-
-  std::cout << std::setprecision(4) << topic_name << "\t" << num_events_after <<
-      "\t0\t\t" << percent_events_discarded << "\t(after)" << std::endl;
-
-  if (!FLAGS_no_stats)
-  {
-    // save images
-    std::string dstDir = OUTPUT_FOLDER + bag_name + "/";
-    if (!one_topic)
-    {
-      dstDir += usable_filename(topic_name) + "/";
-    }
-    boost::filesystem::create_directories(dstDir); // create if needed
-    std::string fname_b = dstDir + "hist_before.png";
-    std::string fname_a = dstDir + "hist_after.png";
-    std::string fname_hp = dstDir + "hot_pixels.txt";
-
-    write_histogram_image(fname_b, histogram);
-    write_histogram_image(fname_a, histogram_after, hot_pixels);
-    write_hot_pixels(fname_hp, hot_pixels);
-  }
-}
+//
+//void save_stats(const std::string bag_name,
+//                 const std::string topic_name,
+//                 const cv::Mat& histogram,
+//                 const std::vector<cv::Point>& hot_pixels,
+//                 const bool one_topic)
+//{
+//  cv::Mat histogram_after;
+//  histogram.copyTo(histogram_after);
+//  for (auto point : hot_pixels)
+//  {
+//    histogram_after.at<double>(point) = 0;
+//  }
+//
+//  const double num_events = cv::sum(histogram)[0];
+//  const double num_events_after = cv::sum(histogram_after)[0];
+//  const double percent_events_discarded = (1 - num_events_after/num_events)*100;
+//
+//  std::cout << std::setprecision(4) << topic_name << "\t" << num_events <<
+//      "\t" << hot_pixels.size() << "\t\t0\t(before)" << std::endl;
+//
+//  std::cout << std::setprecision(4) << topic_name << "\t" << num_events_after <<
+//      "\t0\t\t" << percent_events_discarded << "\t(after)" << std::endl;
+//
+//  if (!FLAGS_no_stats)
+//  {
+//    // save images
+//    std::string dstDir = OUTPUT_FOLDER + bag_name + "/";
+//    if (!one_topic)
+//    {
+//      dstDir += usable_filename(topic_name) + "/";
+//    }
+//    boost::filesystem::create_directories(dstDir); // create if needed
+//    std::string fname_b = dstDir + "hist_before.png";
+//    std::string fname_a = dstDir + "hist_after.png";
+//    std::string fname_hp = dstDir + "hot_pixels.txt";
+//
+//    write_histogram_image(fname_b, histogram);
+//    write_histogram_image(fname_a, histogram_after, hot_pixels);
+//    write_hot_pixels(fname_hp, hot_pixels);
+//  }
+//}
 
 }  // namespace utils
 }  // namespace dvs_reverse_events

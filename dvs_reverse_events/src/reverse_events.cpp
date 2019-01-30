@@ -9,7 +9,8 @@ constexpr double NUM_STD_DEVS = 5; // default
 
 DEFINE_double(n_std, NUM_STD_DEVS, "Number of standard deviations for hot pixel threshold");
 DEFINE_int32(n_hot_pix, -1, "Number of hot pixels to be removed");
-DEFINE_bool(no_stats, false, "Do not save statistics to disk");
+DEFINE_bool(polflip, false, "Flip polarities");
+DEFINE_bool(mirror, true, "Mirror timestamps");
 
 int main(int argc, char* argv[])
 { 
@@ -26,7 +27,8 @@ int main(int argc, char* argv[])
   std::string bag_name = dvs_reverse_events::utils::extract_bag_name(
       path_to_input_rosbag);
 
-  std::string path_to_output_rosbag = path_to_input_rosbag + ".reversed";
+  std::string extension = (FLAGS_polflip)? ".reversedflip" : ".reversed";
+  std::string path_to_output_rosbag = path_to_input_rosbag + extension;
 
   rosbag::Bag input_bag;
   try
@@ -52,7 +54,12 @@ int main(int argc, char* argv[])
 
   dvs_reverse_events::utils::reverse_event_timestamps(events_by_topic);
 
-//  dvs_reverse_events::utils::write_all_msgs(view, events_by_topic, output_bag);
+  if (FLAGS_polflip)
+  {
+    dvs_reverse_events::utils::flip_polarity(events_by_topic);
+  }
+
+  dvs_reverse_events::utils::write_all_msgs(view, events_by_topic, output_bag);
 
   output_bag.close();
   input_bag.close();

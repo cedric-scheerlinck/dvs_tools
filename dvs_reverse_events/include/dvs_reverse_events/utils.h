@@ -47,6 +47,8 @@ void load_events(rosbag::View& view, topic_events& events_by_topic);
 
 void reverse_event_timestamps(topic_events& events_by_topic);
 
+void flip_polarity(topic_events& events_by_topic);
+
 void write_histogram_image(const std::string filename,
                            const cv::Mat& histogram,
                            const std::vector<cv::Point>& hot_pixels
@@ -88,11 +90,11 @@ void write_event_msg(const std::string topic_name,
 void write_hot_pixels(const std::string filename,
                       const std::vector<cv::Point>& hot_pixels);
 
-void save_stats(const std::string bag_name,
-                 const std::string topic_name,
-                 const cv::Mat& histogram,
-                 const std::vector<cv::Point>& hot_pixels,
-                 const bool one_topic);
+//void save_stats(const std::string bag_name,
+//                 const std::string topic_name,
+//                 const cv::Mat& histogram,
+//                 const std::vector<cv::Point>& hot_pixels,
+//                 const bool one_topic);
 
 
 
