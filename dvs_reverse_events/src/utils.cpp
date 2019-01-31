@@ -10,6 +10,8 @@
 #include <sensor_msgs/Imu.h>
 
 DECLARE_bool(mirror);
+DECLARE_bool(fb);
+DECLARE_double(t_minus);
 
 namespace dvs_reverse_events {
 namespace utils {
@@ -176,123 +178,6 @@ std::string extract_bag_name(const std::string fullname)
   return bag_name;
 }
 
-void build_histograms(rosbag::View& view,
-                      topic_mats& histograms)
-{
-  std::cout << "Building event count histogram(s)..." << std::endl;
-
-  std::vector<std::string> seen_topics;
-  for(const rosbag::MessageInstance& m : view)
-  {
-    if(m.getDataType() == "dvs_msgs/EventArray")
-    {
-      const std::string topic_name = m.getTopic();
-      // pointer to the message
-      dvs_msgs::EventArrayConstPtr s = m.instantiate<dvs_msgs::EventArray>();
-      const cv::Size msg_size = cv::Size(s->width, s->height);
-
-      cv::Mat& histogram = histograms[topic_name];
-
-      // initialise event_count_histogram if we haven't seen the topic yet
-      if ( !contains(topic_name, seen_topics) )
-      {
-        histogram = cv::Mat::zeros(msg_size, CV_64FC1);
-        seen_topics.push_back(topic_name);
-        std::cout << "added " << topic_name << " to seen_topics" << std::endl;
-      }
-
-      if (msg_size != histogram.size())
-      {
-        std::cerr << "Error: a new event message in " << topic_name <<
-        " does not match the existing topic histogram size.\n message: " <<
-        msg_size << "\t histogram: " << histogram.size() << std::endl;
-        return;
-      }
-
-      for(auto e : s->events)
-      {
-        // accumulate events_by_topic without discrimination
-        histogram.at<double>(e.y, e.x)++;
-      }
-    }
-  }
-
-  std::cout << "...done!" << std::endl;
-}
-
-void detect_hot_pixels(const topic_mats& histograms_by_topic,
-                       const double& num_std_devs,
-                       const int num_hot_pixels,
-                       topic_points& hot_pixels_by_topic)
-{
-  for(const auto& topic : histograms_by_topic)
-    {
-      const std::string topic_name = topic.first;
-      const cv::Mat& histogram = topic.second;
-      std::vector<cv::Point>& hot_pixels = hot_pixels_by_topic[topic_name];
-      if (num_hot_pixels == -1)
-      {
-        // auto-detect hot pixels
-        double threshold;
-        dvs_reverse_events::utils::find_threshold(
-            histogram, num_std_devs, threshold);
-        dvs_reverse_events::utils::hot_pixels_by_threshold(
-            histogram, threshold, hot_pixels);
-      }
-      else
-      {
-        // user-specified number of hot pixels
-        dvs_reverse_events::utils::hot_pixels_by_ranking(
-            histogram, num_hot_pixels, hot_pixels);
-      }
-    }
-}
-
-void hot_pixels_by_threshold(const cv::Mat& histogram,
-                             const double& threshold,
-                             std::vector<cv::Point>& hot_pixels)
-{
-  for (int y = 0; y < histogram.rows; y++)
-  {
-    for (int x = 0; x < histogram.cols; x++)
-    {
-      if (histogram.at<double>(y, x) > threshold)
-      {
-        hot_pixels.push_back(cv::Point(x, y));
-      }
-    }
-  }
-}
-void hot_pixels_by_ranking(const cv::Mat& histogram,
-                           const double& num_hot_pixels,
-                           std::vector<cv::Point>& hot_pixels)
-{
-  cv::Mat local_hist;
-  histogram.copyTo(local_hist);
-
-  for (int i = 0; i < num_hot_pixels; i++)
-  {
-    double max;
-    cv::Point maxLoc;
-    cv::minMaxLoc(local_hist, nullptr, &max, nullptr, &maxLoc);
-
-    hot_pixels.push_back(maxLoc);
-    local_hist.at<double>(maxLoc) = 0;
-  }
-}
-
-void find_threshold(const cv::Mat& histogram,
-                    const double num_std_devs,
-                    double& threshold)
-{
-  cv::Scalar mean_Scalar, stdDev_Scalar;
-  cv::meanStdDev(histogram, mean_Scalar, stdDev_Scalar, histogram > 0);
-
-  const double mean = mean_Scalar[0];
-  const double stdDev = stdDev_Scalar[0];
-  threshold = mean + num_std_devs*stdDev;
-}
-
 void write_all_msgs(rosbag::View& view,
                     topic_events& events_by_topic,
                     rosbag::Bag& output_bag)
@@ -301,18 +186,106 @@ void write_all_msgs(rosbag::View& view,
   const uint32_t num_messages = view.size();
   uint32_t message_index = 0;
   std::cout << "Writing..." << std::endl;
-  // copy paste everything except events from the intput rosbag into the output
-  for(rosbag::MessageInstance const m : view)
+  if (!FLAGS_fb)
   {
-    write_msg(m, events_by_topic, output_bag);
-    if(message_index++ % log_every_n_messages == 0)
+    // copy paste everything except events from the intput rosbag into the output
+    for(rosbag::MessageInstance const m : view)
     {
-      std::cout << "Message: " << message_index << " / " << num_messages << std::endl;
+      write_msg(m, events_by_topic, output_bag);
+      if(message_index++ % log_every_n_messages == 0)
+      {
+        std::cout << "Message: " << message_index << " / " << num_messages << std::endl;
+      }
+    }
+  }
+  else
+  {
+    std::cout << "forward-pass" << std::endl;
+
+    double total_duration;
+    std::string event_topic;
+    // copy paste everything except events from the intput rosbag into the output
+    for(rosbag::MessageInstance const m : view)
+    {
+      copy_msg(m, output_bag, total_duration);
+      if(message_index++ % log_every_n_messages == 0)
+      {
+        std::cout << "Message: " << message_index << " / " << num_messages << std::endl;
+      }
+      if(m.getDataType() == "dvs_msgs/EventArray")
+      {
+        event_topic = m.getTopic();
+      }
+    }
+    std::cout << "backward-pass" << std::endl;
+    std::cout << "End time: " << total_duration << std::endl;
+    message_index = 0;
+    std::vector<dvs_msgs::Event>& event_vec = events_by_topic[event_topic];
+    int idx = event_vec.size() - 1;
+    for(rosbag::MessageInstance const m : view)
+    {
+
+      if(m.getTopic() == event_topic)
+      {
+        dvs_msgs::EventArrayConstPtr event_array_ptr = m.instantiate<dvs_msgs::EventArray>();
+        std::vector<dvs_msgs::Event> local_events;
+
+        for(int i = 0; i < event_array_ptr->events.size(); i++)
+        {
+          event_vec[idx].ts += ros::Duration(total_duration);
+          local_events.push_back(event_vec[idx]);
+          idx--;
+        }
+
+        if (local_events.size() > 0)
+        {
+          // Write new event array message to output rosbag
+
+          dvs_msgs::EventArray event_array_msg;
+          event_array_msg.events = local_events;
+          event_array_msg.width = event_array_ptr->width;
+          event_array_msg.height = event_array_ptr->height;
+          event_array_msg.header.stamp = local_events.back().ts;
+
+          output_bag.write(event_topic, event_array_msg.header.stamp, event_array_msg);
+        }
+
+        if(message_index++ % log_every_n_messages == 0)
+        {
+          std::cout << "Message: " << message_index << " / " << num_messages << std::endl;
+        }
+      }
     }
   }
 
   std::cout << "Message: " << num_messages << " / " << num_messages << std::endl;
   std::cout << "...done!" << std::endl;
+}
+
+void copy_msg(const rosbag::MessageInstance& m,
+               rosbag::Bag& output_bag,
+               double& total_duration)
+{
+  if(m.getDataType() == "dvs_msgs/EventArray")
+  {
+    dvs_msgs::EventArrayConstPtr event_array_ptr = m.instantiate<dvs_msgs::EventArray>();
+    output_bag.write(m.getTopic(), event_array_ptr->header.stamp - ros::Duration(FLAGS_t_minus), m);
+    total_duration = event_array_ptr->header.stamp.toSec() - FLAGS_t_minus;
+  }
+  else if(m.getDataType() == "sensor_msgs/Image")
+  {
+    sensor_msgs::ImageConstPtr img_msg = m.instantiate<sensor_msgs::Image>();
+    output_bag.write(m.getTopic(), img_msg->header.stamp - ros::Duration(FLAGS_t_minus), m);
+  }
+  else if(m.getDataType() == "sensor_msgs/Imu")
+  {
+    sensor_msgs::ImuConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
+    output_bag.write(m.getTopic(), imu_msg->header.stamp - ros::Duration(FLAGS_t_minus), m);
+  }
+  else
+  {
+    output_bag.write(m.getTopic(), m.getTime() - ros::Duration(FLAGS_t_minus), m);
+  }
 }
 
 void write_msg(const rosbag::MessageInstance& m,
@@ -377,62 +350,6 @@ std::string usable_filename(const std::string filename_in)
   std::replace( filename.begin(), filename.end(), '\\', '_'); // replace all '\' to '_'
   return filename;
 }
-
-void write_hot_pixels(const std::string filename,
-                      const std::vector<cv::Point>& hot_pixels)
-{
-  std::ofstream hot_pixels_file;
-  hot_pixels_file.open(filename);
-  // the important part
-  for (const auto& point : hot_pixels)
-  {
-    hot_pixels_file << point.x << ", " << point.y << "\n";
-  }
-  hot_pixels_file.close();
-}
-
-//
-//void save_stats(const std::string bag_name,
-//                 const std::string topic_name,
-//                 const cv::Mat& histogram,
-//                 const std::vector<cv::Point>& hot_pixels,
-//                 const bool one_topic)
-//{
-//  cv::Mat histogram_after;
-//  histogram.copyTo(histogram_after);
-//  for (auto point : hot_pixels)
-//  {
-//    histogram_after.at<double>(point) = 0;
-//  }
-//
-//  const double num_events = cv::sum(histogram)[0];
-//  const double num_events_after = cv::sum(histogram_after)[0];
-//  const double percent_events_discarded = (1 - num_events_after/num_events)*100;
-//
-//  std::cout << std::setprecision(4) << topic_name << "\t" << num_events <<
-//      "\t" << hot_pixels.size() << "\t\t0\t(before)" << std::endl;
-//
-//  std::cout << std::setprecision(4) << topic_name << "\t" << num_events_after <<
-//      "\t0\t\t" << percent_events_discarded << "\t(after)" << std::endl;
-//
-//  if (!FLAGS_no_stats)
-//  {
-//    // save images
-//    std::string dstDir = OUTPUT_FOLDER + bag_name + "/";
-//    if (!one_topic)
-//    {
-//      dstDir += usable_filename(topic_name) + "/";
-//    }
-//    boost::filesystem::create_directories(dstDir); // create if needed
-//    std::string fname_b = dstDir + "hist_before.png";
-//    std::string fname_a = dstDir + "hist_after.png";
-//    std::string fname_hp = dstDir + "hot_pixels.txt";
-//
-//    write_histogram_image(fname_b, histogram);
-//    write_histogram_image(fname_a, histogram_after, hot_pixels);
-//    write_hot_pixels(fname_hp, hot_pixels);
-//  }
-//}
 
 }  // namespace utils
 }  // namespace dvs_reverse_events

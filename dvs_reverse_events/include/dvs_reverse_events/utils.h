@@ -49,34 +49,13 @@ void reverse_event_timestamps(topic_events& events_by_topic);
 
 void flip_polarity(topic_events& events_by_topic);
 
-void write_histogram_image(const std::string filename,
-                           const cv::Mat& histogram,
-                           const std::vector<cv::Point>& hot_pixels
-                           = std::vector<cv::Point>());
-
-void build_histograms(rosbag::View& view,
-                      topic_mats& histograms);
-
-void detect_hot_pixels(const topic_mats& histograms_by_topic,
-                       const double& num_std_devs,
-                       const int num_hot_pixels,
-                       topic_points& hot_pixels_by_topic);
-
-void hot_pixels_by_threshold(const cv::Mat& histogram,
-                             const double& threshold,
-                             std::vector<cv::Point>& hot_pixels);
-
-void hot_pixels_by_ranking(const cv::Mat& histogram,
-                           const double& num_hot_pixels,
-                           std::vector<cv::Point>& hot_pixels);
-
-void find_threshold(const cv::Mat& histogram,
-                    const double num_std_devs,
-                    double& threshold);
-
 void write_all_msgs(rosbag::View& view,
                     topic_events& events_by_topic,
                     rosbag::Bag& output_bag);
+
+void copy_msg(const rosbag::MessageInstance& m,
+               rosbag::Bag& ,
+               double& total_duration);
 
 void write_msg(const rosbag::MessageInstance& m,
                topic_events& events_by_topic,
@@ -89,15 +68,6 @@ void write_event_msg(const std::string topic_name,
 
 void write_hot_pixels(const std::string filename,
                       const std::vector<cv::Point>& hot_pixels);
-
-//void save_stats(const std::string bag_name,
-//                 const std::string topic_name,
-//                 const cv::Mat& histogram,
-//                 const std::vector<cv::Point>& hot_pixels,
-//                 const bool one_topic);
-
-
-
 
 }  // namespace utils
 }  // namespace dvs_reverse_events

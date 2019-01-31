@@ -11,6 +11,8 @@ DEFINE_double(n_std, NUM_STD_DEVS, "Number of standard deviations for hot pixel 
 DEFINE_int32(n_hot_pix, -1, "Number of hot pixels to be removed");
 DEFINE_bool(polflip, false, "Flip polarities");
 DEFINE_bool(mirror, true, "Mirror timestamps");
+DEFINE_bool(fb, false, "Save both forward and backward pass in one bag");
+DEFINE_double(t_minus, 0, "Time to subtract from every msg");
 
 int main(int argc, char* argv[])
 { 
@@ -58,6 +60,7 @@ int main(int argc, char* argv[])
   {
     dvs_reverse_events::utils::flip_polarity(events_by_topic);
   }
+
 
   dvs_reverse_events::utils::write_all_msgs(view, events_by_topic, output_bag);
 
