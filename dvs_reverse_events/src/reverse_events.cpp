@@ -61,7 +61,6 @@ int main(int argc, char* argv[])
     dvs_reverse_events::utils::flip_polarity(events_by_topic);
   }
 
-
   dvs_reverse_events::utils::write_all_msgs(view, events_by_topic, output_bag);
 
   output_bag.close();

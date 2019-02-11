@@ -299,20 +299,20 @@ void write_msg(const rosbag::MessageInstance& m,
     dvs_msgs::EventArrayConstPtr event_array_ptr = m.instantiate<dvs_msgs::EventArray>();
     write_event_msg(topic_name, event_array_ptr, event_vec, output_bag);
   }
-  else if(m.getDataType() == "sensor_msgs/Image")
-  {
-    sensor_msgs::ImageConstPtr img_msg = m.instantiate<sensor_msgs::Image>();
-    output_bag.write(m.getTopic(), img_msg->header.stamp, m);
-  }
-  else if(m.getDataType() == "sensor_msgs/Imu")
-  {
-    sensor_msgs::ImuConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
-    output_bag.write(m.getTopic(), imu_msg->header.stamp, m);
-  }
-  else
-  {
-    output_bag.write(m.getTopic(), m.getTime(), m);
-  }
+//  else if(m.getDataType() == "sensor_msgs/Image")
+//  {
+//    sensor_msgs::ImageConstPtr img_msg = m.instantiate<sensor_msgs::Image>();
+//    output_bag.write(m.getTopic(), img_msg->header.stamp, m);
+//  }
+//  else if(m.getDataType() == "sensor_msgs/Imu")
+//  {
+//    sensor_msgs::ImuConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
+//    output_bag.write(m.getTopic(), imu_msg->header.stamp, m);
+//  }
+//  else
+//  {
+//    output_bag.write(m.getTopic(), m.getTime(), m);
+//  }
 }
 
 void write_event_msg(const std::string topic_name,
