@@ -21,7 +21,7 @@ bool parse_arguments(int argc, char* argv[],
   if(argc < 2)
   {
     std::cerr << "Not enough arguments" << std::endl;
-    std::cerr << "Usage: rosrun dvs_rosbag_stats dvs_rosbag_stats path_to_bag.bag";
+    std::cerr << "Usage: rosrun dvs_frame_filter dvs_frame_filter path_to_bag.bag";
     return false;
   }
 
@@ -30,10 +30,7 @@ bool parse_arguments(int argc, char* argv[],
   return true;
 }
 
-bool compute_stats(const std::string path_to_input_rosbag,
-                   int& num_events,
-                   int& num_frames,
-                   double& duration)
+bool remove_frames(const std::string path_to_input_rosbag)
 {
   std::cout << "Processing: " << path_to_input_rosbag << std::endl;
 
@@ -91,9 +88,9 @@ bool compute_stats(const std::string path_to_input_rosbag,
 
   input_bag.close();
 
-  num_events = num_events_tmp;
-  num_frames = num_frames_tmp;
-  duration = end_time - start_time;
+//  num_events = num_events_tmp;
+//  num_frames = num_frames_tmp;
+//  duration = end_time - start_time;
 
   return true;
 }
@@ -125,22 +122,18 @@ bool hasEnding (std::string const &fullString, std::string const &ending) {
 int main(int argc, char* argv[])
 {
   std::string path_to_input_rosbag;
-  int max_num_events_per_packet;
-  ros::Duration max_duration_event_packet;
 
   if (!parse_arguments(argc, argv, &path_to_input_rosbag))
   {
     return -1;
   }
 
+
   int num_events;
   int num_frames;
   double duration;
 
-  if (!compute_stats(path_to_input_rosbag,
-                    num_events,
-                    num_frames,
-                    duration))
+  if (!remove_frames(path_to_input_rosbag))
   {
     return -1;
   }
