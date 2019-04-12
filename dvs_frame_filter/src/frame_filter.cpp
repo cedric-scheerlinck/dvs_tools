@@ -16,8 +16,11 @@
 #define foreach BOOST_FOREACH
 
 bool parse_arguments(int argc, char* argv[],
-                     std::string* path_to_input_rosbag)
+                     std::string* path_to_input_rosbag,
+                     int& height,
+                     int& width)
 {
+//  std::cout << argc << std::endl;
   if(argc < 2)
   {
     std::cerr << "Not enough arguments" << std::endl;
@@ -27,20 +30,47 @@ bool parse_arguments(int argc, char* argv[],
 
   *path_to_input_rosbag = std::string(argv[1]);
 
+  if (argc == 4)
+  {
+    height = std::stoi(argv[2]);
+    width = std::stoi(argv[3]);
+  }
+
   return true;
 }
 
-bool remove_frames(const std::string path_to_input_rosbag)
+int mode(std::vector<int> a)
 {
-  std::cout << "Processing: " << path_to_input_rosbag << std::endl;
+  int previousValue = a.front();
+  int mode = previousValue;
+  int count = 1;
+  int modeCount = 1;
 
-  auto const pos = path_to_input_rosbag.find_last_of('/');
-  const std::string output_dir = path_to_input_rosbag.substr(0, pos + 1) + "stats/";
-  const std::string output_filename = path_to_input_rosbag.substr(
-      pos + 1, path_to_input_rosbag.length() - (pos + 1) - 4) + ".txt";
-  const std::string path_to_output = output_dir + output_filename;
-  boost::filesystem::create_directories(output_dir);
+  for (auto const& value: a)
+  {
+        if (value == previousValue)
+        { // count occurrences of the current value
+           ++count;
+        }
+        else
+        { // now this is a different value
+          if (count > modeCount)  // first check if count exceeds the current mode
+          {
+            modeCount = count;
+            mode = previousValue;
+          }
+         count = 1; // reset count for the new number
+         previousValue = value;
+    }
+  }
 
+  return mode;
+}
+
+void correct_frame_size(std::string path_to_input_rosbag,
+                        int& height,
+                        int& width)
+{
   rosbag::Bag input_bag;
   try
   {
@@ -49,104 +79,151 @@ bool remove_frames(const std::string path_to_input_rosbag)
   catch(rosbag::BagIOException e)
   {
     std::cerr << "Error: could not open rosbag: " << path_to_input_rosbag << std::endl;
-    return false;
+    return;
   }
 
   rosbag::View view(input_bag);
+  height = 0; // defaults
+  width = 0;
+  std::vector<int> height_vec;
+  std::vector<int> width_vec;
+  constexpr int N_SAMPLES = 100;
+  int event_message_count = 0;
+  int image_message_count = 0;
 
-  std::unordered_map<std::string, std::vector<dvs_msgs::Event>> event_packets_for_each_event_topic;
-
-  const uint32_t num_messages = view.size();
-  uint32_t message_index = 0;
-
-  int num_events_tmp = 0;
-  int num_frames_tmp = 0;
-  double start_time;
-  double end_time = 0;
-  bool first_msg = true;
+  // try and infer correct frame dimensions from
+  // N samples of EventArray message and
+  // 2N samples of Image messages.
 
   foreach(rosbag::MessageInstance const m, view)
   {
-    if (m.getDataType() == "dvs_msgs/EventArray")
+    if(m.getDataType() == "dvs_msgs/EventArray" && event_message_count < N_SAMPLES)
     {
-
-      std::vector<dvs_msgs::Event>& events = event_packets_for_each_event_topic[m.getTopic()];
       dvs_msgs::EventArrayConstPtr s = m.instantiate<dvs_msgs::EventArray>();
-      num_events_tmp += s->events.size();
-      if (first_msg)
-      {
-        start_time = s->events.front().ts.toSec();
-        first_msg = false;
-      }
-      end_time = std::max(s->events.back().ts.toSec(), end_time);
+
+      height_vec.push_back(s->height);
+      width_vec.push_back(s->width);
+      event_message_count++;
     }
-    else if (m.getDataType() == "sensor_msgs/Image")
+
+    if(m.getDataType() == "sensor_msgs/Image" && image_message_count < 2*N_SAMPLES)
     {
-      num_frames_tmp += 1;
+      sensor_msgs::ImageConstPtr img_msg = m.instantiate<sensor_msgs::Image>();
+
+      height_vec.push_back(img_msg->height);
+      width_vec.push_back(img_msg->width);
+      image_message_count++;
+    }
+
+    if (height_vec.size() == 3*N_SAMPLES && width_vec.size() == 3*N_SAMPLES)
+    {
+      break;
     }
   }
 
+  if (height_vec.size() == 0 || width_vec.size() == 0)
+  {
+    input_bag.close();
+    return;
+  }
+
+  sort(height_vec.begin(), height_vec.end());
+  sort(width_vec.begin(), width_vec.end());
+
+  height = mode(height_vec);
+  width = mode(width_vec);
+
   input_bag.close();
-
-//  num_events = num_events_tmp;
-//  num_frames = num_frames_tmp;
-//  duration = end_time - start_time;
-
-  return true;
-}
-
-bool write_stats(const std::string path_to_output,
-                 const int& num_events,
-                 const int& num_frames,
-                 const double& duration)
-{
-
-  std::ofstream stats_file;
-  stats_file.open(path_to_output);
-//  stats_file << "Number of events: " << num_events << '\n';
-//  stats_file << "Number of frames: " << num_frames << '\n';
-//  stats_file << "Total duration (s): " << duration << '\n';
-  stats_file << num_events << ", " << num_frames << ", " << duration << std::endl;
-  stats_file.close();
-  return true;
-}
-
-bool hasEnding (std::string const &fullString, std::string const &ending) {
-    if (fullString.length() >= ending.length()) {
-        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
-    } else {
-        return false;
-    }
+  return;
 }
 
 int main(int argc, char* argv[])
 {
   std::string path_to_input_rosbag;
+  int height = 0;
+  int width = 0;
+  int num_bad_frames = 0;
 
-  if (!parse_arguments(argc, argv, &path_to_input_rosbag))
+  if (!parse_arguments(argc,
+                       argv,
+                       &path_to_input_rosbag,
+                       height,
+                       width))
   {
     return -1;
   }
 
-
-  int num_events;
-  int num_frames;
-  double duration;
-
-  if (!remove_frames(path_to_input_rosbag))
+  if (height == 0 || width == 0)
   {
+    correct_frame_size(path_to_input_rosbag, height, width);
+    std::cout << "Auto-detected height, width: " << height << ", " << width << std::endl;
+  }
+  else
+  {
+    std::cout << "Manually entered height, width: " << height << ", " << width << std::endl;
+  }
+
+  if (height == 0 || width == 0)
+  {
+    std::cerr << "Error: could not automatically determine correct frame size." << std::endl;
     return -1;
   }
 
-  auto const pos = path_to_input_rosbag.find_last_of('/');
-  const std::string output_dir = path_to_input_rosbag.substr(0, pos + 1) + "stats/";
-  const std::string output_filename = path_to_input_rosbag.substr(
-      pos + 1, path_to_input_rosbag.length() - (pos + 1) - 4) + ".txt";
-  const std::string path_to_output = output_dir + output_filename;
-  boost::filesystem::create_directories(output_dir);
-  write_stats(path_to_output,
-              num_events,
-              num_frames,
-              duration);
+  rosbag::Bag input_bag;
+  try
+  {
+   input_bag.open(path_to_input_rosbag, rosbag::bagmode::Read);
+  }
+  catch(rosbag::BagIOException e)
+  {
+   std::cerr << "Error: could not open rosbag: " << path_to_input_rosbag << std::endl;
+   return -1;
+  }
+
+  rosbag::Bag output_bag;
+  std::string path_to_output_rosbag = path_to_input_rosbag + ".filtered";
+  output_bag.open(path_to_output_rosbag, rosbag::bagmode::Write);
+
+  rosbag::View view(input_bag);
+  foreach(rosbag::MessageInstance const m, view)
+  {
+    if(m.getDataType() == "sensor_msgs/Image")
+    {
+      sensor_msgs::ImageConstPtr img_msg = m.instantiate<sensor_msgs::Image>();
+      if (img_msg->height == height && img_msg->width == width)
+      {
+        output_bag.write(m.getTopic(), img_msg->header.stamp, m);
+      }
+      else
+      {
+        num_bad_frames++;
+      }
+    }
+    else if(m.getDataType() == "dvs_msgs/EventArray")
+    {
+      dvs_msgs::EventArrayConstPtr s = m.instantiate<dvs_msgs::EventArray>();
+      ros::Time timestamp = s->header.stamp;
+      if (timestamp < ros::TIME_MIN)
+      {
+        timestamp = s->events.back().ts;
+      }
+      output_bag.write(m.getTopic(), timestamp, m);
+    }
+    else if(m.getDataType() == "sensor_msgs/Imu")
+    {
+      sensor_msgs::ImuConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
+      output_bag.write(m.getTopic(), imu_msg->header.stamp, m);
+    }
+    else
+    {
+      output_bag.write(m.getTopic(), m.getTime(), m);
+    }
+  }
+
+  std::cout << "Removed " << num_bad_frames << " bad frames." << std::endl;
+
+  output_bag.close();
+  input_bag.close();
+
   return 0;
 }
