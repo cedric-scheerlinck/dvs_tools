@@ -26,5 +26,5 @@ Build
     catkin build dvs_frame_filter
     source ~/catkin_ws/devel/setup.bash 
     
-Saves output to ```<bag_name>.bag.filtered```.
+Saves output to ```path_to_input.bag.filtered```.
 
