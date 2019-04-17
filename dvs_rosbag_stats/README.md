@@ -2,9 +2,14 @@
 
 Description.
 
-Usage:
+### Usage:
+#### Single .bag file:
 
         rosrun dvs_rosbag_stats dvs_rosbag_stats path_to_input.bag
+      
+#### Process folder (used to process an entire folder of .bag files):
+
+        python process_folder.py --folder <bag/folder/>
         
 ## Installation
 
@@ -17,5 +22,4 @@ Build
     
 ## Statistics
 
-Saves output statistics to ```./stats/<bag_name>.txt```.
-
+Saves output statistics to ```<bag_folder>/stats/<bag_name>.txt```.
