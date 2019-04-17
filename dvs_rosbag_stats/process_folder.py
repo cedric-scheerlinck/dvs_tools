@@ -34,7 +34,7 @@ if __name__ == "__main__":
             # append the arguments to the rosrun command
             rosrun_cmd = build_run_command(os.path.join(args.folder, file))
             # print rosrun_cmd
-            print subprocess.check_output(rosrun_cmd)
+            print(subprocess.check_output(rosrun_cmd))
 
     # now summarise output txt files
 
