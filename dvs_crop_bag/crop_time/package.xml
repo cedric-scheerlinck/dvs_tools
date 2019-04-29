@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>dvs_crop_time</name>
+  <version>0.0.0</version>
+  <description>Crop a rosbag by timestamp</description>
+  <maintainer email="cedric.scheerlinck@anu.edu.au">Cedric Scheerlinck</maintainer>
+  <license>GNU GPL</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+
+  <depend>gflags_catkin</depend>
+  <depend>roscpp</depend>
+  <depend>rosbag</depend>
+  <depend>dvs_msgs</depend>
+
+</package>

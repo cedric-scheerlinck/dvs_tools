@@ -5,7 +5,7 @@ Crops bag by number of messages.
 ### Usage:
 #### Single .bag file:
 
-        rosrun dvs_crop_msg dvs_crop_msg path_to_input.bag <num_msgs> <num_skip>
+        rosrun dvs_crop_time dvs_crop_time path_to_input.bag <num_msgs> <num_skip>
         
 num_skip is an optional parameters that specifies the number of messages to skip at the beginning.
         
@@ -19,7 +19,7 @@ Assumes you have already set up your workspace (see [here](https://github.com/ce
 
 Build
 
-    catkin build dvs_crop_msg
+    catkin build dvs_crop_time
     source ~/catkin_ws/devel/setup.bash 
     
 Saves output to ```path_to_input.bag.filtered```.

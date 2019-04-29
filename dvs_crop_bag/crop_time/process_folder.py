@@ -16,10 +16,10 @@ import numpy as np
 
 
 def build_run_command(path_to_input_bag, num_msgs, num_skip):
-    # "rosrun dvs_crop_msg dvs_crop_msg path_to_input num_msgs"
+    # "rosrun dvs_crop_time dvs_crop_time path_to_input"
     rosrun_cmd = ['rosrun',
-                  'dvs_crop_msg',
-                  'dvs_crop_msg',
+                  'dvs_crop_time',
+                  'dvs_crop_time',
                   path_to_input_bag,
                   str(num_msgs),
                   str(num_skip)]
