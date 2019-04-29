@@ -28,10 +28,11 @@ bool parse_arguments(int argc, char* argv[],
                      std::string* path_to_input_rosbag
                      )
 {
-  if(argc < 3)
+  constexpr int expected_num_arguments = 3;
+  if(argc < expected_num_arguments)
   {
-    std::cerr << "Not enough arguments" << std::endl;
-    std::cerr << "Usage: rosrun dvs_crop_bag dvs_crop_bag path_to_bag.bag";
+    std::cerr << "Not enough arguments, "<< argc << " given, " << expected_num_arguments << " expected." << std::endl;
+    std::cerr << "Usage: rosrun dvs_crop_bag dvs_crop_bag path_to_bag.bag" << std::endl;
     return false;
   }
 
@@ -43,24 +44,18 @@ bool parse_arguments(int argc, char* argv[],
 bool time_within_crop(const ros::Time& timestamp)
 {
   static const double first_timestamp = timestamp.toSec(); // initialised only once
-
   const double t_now = timestamp.toSec() - first_timestamp;
+
   bool in_t1 = t_now > FLAGS_t1s && t_now < FLAGS_t1e;
   bool in_t2 = t_now > FLAGS_t2s && t_now < FLAGS_t2e;
   bool in_t3 = t_now > FLAGS_t3s && t_now < FLAGS_t3e;
-
   return in_t1 || in_t2 || in_t3;
-
 }
 
 int main(int argc, char* argv[])
 {
   std::string path_to_input_rosbag;
-  constexpr double TIME_PADDING = 0.01;
-  ros::Time previous_endtime = ros::Time(TIME_PADDING);
-  ros::Duration duration_to_subtract = ros::Duration(0.0 - previous_endtime.toSec() - TIME_PADDING);
-  bool was_within_crop = false;
-
+  // parse my arguments first before google gflags
   if (!parse_arguments(argc,
                        argv,
                        &path_to_input_rosbag
@@ -68,6 +63,13 @@ int main(int argc, char* argv[])
   {
     return -1;
   }
+
+  google::ParseCommandLineFlags(&argc, &argv, true);
+
+  constexpr double TIME_PADDING = 0.01;
+  ros::Time previous_endtime = ros::Time(TIME_PADDING);
+  ros::Duration duration_to_subtract = ros::Duration(0.0 - previous_endtime.toSec() - TIME_PADDING);
+  bool was_within_crop = false;
 
   rosbag::Bag input_bag;
   try
@@ -87,74 +89,31 @@ int main(int argc, char* argv[])
   rosbag::View view(input_bag);
   foreach(rosbag::MessageInstance const m, view)
   {
-    if(m.getDataType() == "sensor_msgs/Image")
+    const ros::Time timestamp = m.getTime();
+    if (time_within_crop(timestamp))
     {
-      sensor_msgs::ImageConstPtr img_msg = m.instantiate<sensor_msgs::Image>();
-      const ros::Time timestamp = img_msg->header.stamp;
-      if (time_within_crop(timestamp))
+      if (!was_within_crop)
       {
-        if (!was_within_crop)
-        {
-          duration_to_subtract = ros::Duration(timestamp.toSec() - previous_endtime.toSec() - TIME_PADDING);
-          was_within_crop = true;
-        }
-        const ros::Time new_timestamp = timestamp - duration_to_subtract;
-        if (new_timestamp < ros::TIME_MIN)  // sanity check
-        {
-          std::cerr << "new timestamp < ros::TIME_MIN, skipping." << std::endl;
-          continue;
-        }
-        output_bag.write(m.getTopic(), new_timestamp, m);
+        duration_to_subtract = ros::Duration(timestamp.toSec() - previous_endtime.toSec() - TIME_PADDING);
+        was_within_crop = true;
+      }
+      const ros::Time new_timestamp = timestamp - duration_to_subtract;
 
-      }
-      else
+      if (new_timestamp < ros::TIME_MIN)  // sanity check
       {
-        if (was_within_crop)
-        {
-          previous_endtime = timestamp - duration_to_subtract;
-        }
-        was_within_crop = false;
+        std::cerr << "new timestamp < ros::TIME_MIN, skipping." << std::endl;
+        continue;
       }
+      output_bag.write(m.getTopic(), new_timestamp, m);
     }
-    else if(m.getDataType() == "dvs_msgs/EventArray")
+    else
     {
-      dvs_msgs::EventArrayConstPtr event_msg = m.instantiate<dvs_msgs::EventArray>();
-
-      const ros::Time timestamp = event_msg->header.stamp;
-      if (time_within_crop(timestamp))
+      if (was_within_crop)
       {
-        if (!was_within_crop)
-        {
-          duration_to_subtract = ros::Duration(timestamp.toSec() - previous_endtime.toSec() - TIME_PADDING);
-          was_within_crop = true;
-        }
-        const ros::Time new_timestamp = timestamp - duration_to_subtract;
-        if (new_timestamp < ros::TIME_MIN)  // sanity check
-        {
-          std::cerr << "new timestamp < ros::TIME_MIN, skipping." << std::endl;
-          continue;
-        }
-        output_bag.write(m.getTopic(), new_timestamp, m);
-
+        previous_endtime = timestamp - duration_to_subtract;
       }
-      else
-      {
-        if (was_within_crop)
-        {
-          previous_endtime = timestamp - duration_to_subtract;
-        }
-        was_within_crop = false;
-      }
+      was_within_crop = false;
     }
-//    else if(m.getDataType() == "sensor_msgs/Imu")
-//    {
-//      sensor_msgs::ImuConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
-//      output_bag.write(m.getTopic(), imu_msg->header.stamp, m);
-//    }
-//    else
-//    {
-//      output_bag.write(m.getTopic(), m.getTime(), m);
-//    }
   }
 
 //  std::cout << "Wrote " << msg_count - 1 << " messages." << std::endl;
