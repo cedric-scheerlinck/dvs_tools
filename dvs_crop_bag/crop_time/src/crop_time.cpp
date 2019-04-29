@@ -28,7 +28,7 @@ bool parse_arguments(int argc, char* argv[],
                      std::string* path_to_input_rosbag
                      )
 {
-  constexpr int expected_num_arguments = 3;
+  constexpr int expected_num_arguments = 2;
   if(argc < expected_num_arguments)
   {
     std::cerr << "Not enough arguments, "<< argc << " given, " << expected_num_arguments << " expected." << std::endl;
@@ -50,6 +50,32 @@ bool time_within_crop(const ros::Time& timestamp)
   bool in_t2 = t_now > FLAGS_t2s && t_now < FLAGS_t2e;
   bool in_t3 = t_now > FLAGS_t3s && t_now < FLAGS_t3e;
   return in_t1 || in_t2 || in_t3;
+}
+
+dvs_msgs::EventArray new_event_msg(rosbag::MessageInstance const& m,
+                                   const ros::Duration& duration_to_subtract
+                                   )
+{
+  dvs_msgs::EventArray event_array_msg;
+
+  std::vector<dvs_msgs::Event> events;
+  dvs_msgs::EventArrayConstPtr s = m.instantiate<dvs_msgs::EventArray>();
+  for(auto e : s->events)
+  {
+    double new_ts = e.ts.toSec() - duration_to_subtract.toSec();
+    if (new_ts > 0.001) // not too close to 'zero'
+    {
+      e.ts = ros::Time(new_ts);
+      events.push_back(e);
+    }
+  }
+
+  event_array_msg.events = events;
+  event_array_msg.width = s->width;
+  event_array_msg.height = s->height;
+  event_array_msg.header.stamp = s->header.stamp - duration_to_subtract;
+
+  return event_array_msg;
 }
 
 int main(int argc, char* argv[])
@@ -87,7 +113,7 @@ int main(int argc, char* argv[])
   output_bag.open(path_to_output_rosbag, rosbag::bagmode::Write);
 
   rosbag::View view(input_bag);
-  foreach(rosbag::MessageInstance const m, view)
+  foreach(rosbag::MessageInstance const& m, view)
   {
     const ros::Time timestamp = m.getTime();
     if (time_within_crop(timestamp))
@@ -104,7 +130,14 @@ int main(int argc, char* argv[])
         std::cerr << "new timestamp < ros::TIME_MIN, skipping." << std::endl;
         continue;
       }
-      output_bag.write(m.getTopic(), new_timestamp, m);
+      if (m.getDataType() == "dvs_msgs/EventArray")
+      {
+        output_bag.write(m.getTopic(), new_timestamp, new_event_msg(m, duration_to_subtract));
+      }
+      else
+      {
+        output_bag.write(m.getTopic(), new_timestamp, m);
+      }
     }
     else
     {
@@ -115,8 +148,6 @@ int main(int argc, char* argv[])
       was_within_crop = false;
     }
   }
-
-//  std::cout << "Wrote " << msg_count - 1 << " messages." << std::endl;
 
   output_bag.close();
   input_bag.close();

@@ -15,14 +15,16 @@ import argparse
 import numpy as np
 
 
-def build_run_command(path_to_input_bag, num_msgs, num_skip):
+def build_run_command(path_to_input_bag, time_intervals):
     # "rosrun dvs_crop_time dvs_crop_time path_to_input"
     rosrun_cmd = ['rosrun',
                   'dvs_crop_time',
                   'dvs_crop_time',
                   path_to_input_bag,
-                  str(num_msgs),
-                  str(num_skip)]
+                  f'--t1s={time_intervals[0]}',
+                  f'--t1e={time_intervals[1]}',
+                  f'--t2s={time_intervals[2]}',
+                  f'--t2e={time_intervals[3]}'] 
 
     return rosrun_cmd
 
@@ -35,37 +37,15 @@ if __name__ == "__main__":
                         required=True,
                         type=str,
                         help="directory of rosbags")
-    parser.add_argument("--num_msgs",
+    parser.add_argument("--config_path",
                         required=True,
-                        type=int,
-                        help="number of messages to write")
-    parser.add_argument("--num_skip",
-                        required=False,
-                        type=int,
-                        default=0,
-                        help="number of messages to skip")
+                        type=str,
+                        help="path to times.txt config file")
     args = parser.parse_args()
 
-    for file in os.listdir(args.folder):
-        if file.endswith(".bag"):
-            # print(file)
-            # append the arguments to the rosrun command
-            rosrun_cmd = build_run_command(os.path.join(args.folder, file), args.num_msgs, args.num_skip)
-            # print(rosrun_cmd)
+    with open(args.config_path, 'r') as f:
+        for line in f.readlines():
+            argList = line.rstrip().split(' ')
+            rosrun_cmd = build_run_command(os.path.join(args.folder, argList[0]), argList[1:])
             print(subprocess.check_output(rosrun_cmd))
-
-    # now summarise output txt files
-
-    # num_events_list = list()
-    # num_frames_list = list()
-    # duration_list = list()
-    # stats_dir = os.path.join(args.folder, "stats")
-    # for file in os.listdir(stats_dir):
-    #     if file.endswith(".txt"):
-    #         num_events, num_frames, duration = np.loadtxt(os.path.join(stats_dir, file), delimiter=',')
-    #         num_events_list.append(num_events)
-    #         num_frames_list.append(num_frames)
-    #         duration_list.append(duration)
-    #
-    # print(np.sum(num_events_list), np.sum(num_frames_list), np.sum(duration_list))
 
