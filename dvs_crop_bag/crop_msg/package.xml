@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>dvs_crop_bag</name>
+  <name>dvs_crop_msg</name>
   <version>0.0.0</version>
-  <description>Crop a rosbag by timestamp</description>
+  <description>Crop a rosbag by message</description>
   <maintainer email="cedric.scheerlinck@anu.edu.au">Cedric Scheerlinck</maintainer>
   <license>GNU GPL</license>
 
