@@ -5,7 +5,9 @@ Crops bag by number of messages.
 ### Usage:
 #### Single .bag file:
 
-        rosrun dvs_crop_bag dvs_crop_bag path_to_input.bag <num_msgs>
+        rosrun dvs_crop_bag dvs_crop_bag path_to_input.bag <num_msgs> <num_skip>
+        
+num_skip is an optional parameters that specifies the number of messages to skip at the beginning.
         
 #### Process folder (used to process an entire folder of .bag files):
 
