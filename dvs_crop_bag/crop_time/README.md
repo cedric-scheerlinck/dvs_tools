@@ -15,9 +15,13 @@ t2e: timestamp 2 end
 specify the start and end boundaries for each crop 'segment'. The time intervals not included within a start and end segment will be removed, and the timestamps shifted to make the bag 'continuous'.
 
         
-#### Process folder (used to process an entire folder of .bag files):
+#### Process folder (used to process a folder of .bag files):
 
-        python process_folder.py --folder <bag/folder/> --t1s t1s --t1e t1e 
+        python process_folder.py --folder <bag/folder/> --config_path <path/to/config.txt>
+        
+config.txt is a text file with one line per bag that you want to process:
+
+filename.bag t1s t1e t2s t2e
         
 ## Installation
 
