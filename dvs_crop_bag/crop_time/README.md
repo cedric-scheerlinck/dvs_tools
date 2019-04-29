@@ -5,7 +5,7 @@ Crops bag by timestamp.
 ### Usage:
 #### Single .bag file:
 
-        rosrun dvs_crop_time dvs_crop_time path_to_input.bag --t1s=<t1s> --t1e=<t1e> --t2s=<t2s> --t2e=<t2e>
+    rosrun dvs_crop_time dvs_crop_time path_to_input.bag --t1s=<t1s> --t1e=<t1e> --t2s=<t2s> --t2e=<t2e>
         
 t1s: timestamp 1 start  
 t1e: timestamp 1 end  
@@ -17,11 +17,11 @@ specify the start and end boundaries for each crop 'segment'. The time intervals
         
 #### Process folder (used to process a folder of .bag files):
 
-        python process_folder.py --folder <bag/folder/> --config_path <path/to/config.txt>
+    python process_folder.py --folder <bag/folder/> --config_path <path/to/config.txt>
         
 config.txt is a text file with one line per bag that you want to process:
 
-filename.bag t1s t1e t2s t2e
+    filename.bag t1s t1e t2s t2e
         
 ## Installation
 
