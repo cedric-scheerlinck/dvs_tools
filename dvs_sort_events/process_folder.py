@@ -15,16 +15,14 @@ import argparse
 import numpy as np
 
 
-def build_run_command(path_to_input_bag, time_intervals):
-    # "rosrun dvs_crop_time dvs_crop_time path_to_input"
+def build_run_command(path_to_input_bag, max_events, max_duration_ms):
+    # "rosrun dvs_sort_events sort path_to_input --max_events=n --max_duration_ms=t"
     rosrun_cmd = ['rosrun',
-                  'dvs_crop_time',
-                  'dvs_crop_time',
+                  'dvs_sort_events',
+                  'sort',
                   path_to_input_bag,
-                  f'--t1s={time_intervals[0]}',
-                  f'--t1e={time_intervals[1]}',
-                  f'--t2s={time_intervals[2]}',
-                  f'--t2e={time_intervals[3]}'] 
+                  f'--max_events={max_events}',
+                  f'--max_duration_ms={max_duration_ms}'] 
 
     return rosrun_cmd
 
@@ -37,15 +35,17 @@ if __name__ == "__main__":
                         required=True,
                         type=str,
                         help="directory of rosbags")
-    parser.add_argument("--config_path",
+    parser.add_argument("--max_events",
                         required=True,
                         type=str,
-                        help="path to times.txt config file")
+                        help="Maximum number of events per output message")
+    parser.add_argument("--max_duration_ms",
+                        required=True,
+                        type=str,
+                        help="Maximum duration of output message")
     args = parser.parse_args()
 
-    with open(args.config_path, 'r') as f:
-        for line in f.readlines():
-            argList = line.rstrip().split(' ')
-            rosrun_cmd = build_run_command(os.path.join(args.folder, argList[0]), argList[1:])
+    for file in os.listdir(args.folder):
+        if file.endswith(".bag"):
+            rosrun_cmd = build_run_command(os.path.join(args.folder, file), args.max_events, args.max_duration_ms)
             print(subprocess.check_output(rosrun_cmd))
-
