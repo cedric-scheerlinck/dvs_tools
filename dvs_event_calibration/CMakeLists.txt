@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(dvs_calibration)
+project(dvs_event_calibration)
 
 find_package(catkin_simple REQUIRED)
 
@@ -10,7 +10,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3")
 find_package(OpenCV REQUIRED)
 
 # make libraries
-cs_add_library(${PROJECT_NAME} src/dvs_calibration.cpp
+cs_add_library(${PROJECT_NAME} src/dvs_event_calibration.cpp
 							   src/bag_player.cpp
 							   src/utils.cpp)
 

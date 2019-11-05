@@ -6,9 +6,9 @@
 //#include <string>
 #include <ctime>
 
-#include "pure_event_reconstruction/bag_player.h"
-#include "pure_event_reconstruction/pure_event_reconstruction.h"
-#include "pure_event_reconstruction/utils.h"
+#include "dvs_event_calibration/bag_player.h"
+#include "dvs_event_calibration/dvs_event_calibration.h"
+#include "dvs_event_calibration/utils.h"
 
 int main(int argc, char* argv[])
 {
@@ -24,7 +24,7 @@ int main(int argc, char* argv[])
   ros::NodeHandle nh;
   ros::NodeHandle nh_private("~");
 
-  pure_event_reconstruction::High_pass_filter high_pass_filter(nh, nh_private);
+  dvs_event_calibration::High_pass_filter high_pass_filter(nh, nh_private);
 
   std::string bag_path;
   nh_private.getParam("bag_path", bag_path);
@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
     // subscriber queue size
     constexpr int EVENT_SUB_QUEUE_SIZE = 1000;
     ros::Subscriber event_sub = nh.subscribe(
-        "events", EVENT_SUB_QUEUE_SIZE, &pure_event_reconstruction::High_pass_filter::eventsCallback,
+        "events", EVENT_SUB_QUEUE_SIZE, &dvs_event_calibration::High_pass_filter::eventsCallback,
         &high_pass_filter);
 
     ros::spin();
@@ -47,11 +47,11 @@ int main(int argc, char* argv[])
     std::string working_dir;
     nh_private.getParam("working_dir", working_dir);
 
-    bag_path = pure_event_reconstruction::utils::fullpath(working_dir, bag_path);
+    bag_path = dvs_event_calibration::utils::fullpath(working_dir, bag_path);
 
     VLOG(1) << "Path to rosbag: " << bag_path;
 
-    std::string event_topic_name = pure_event_reconstruction::utils::find_event_topic(bag_path);
+    std::string event_topic_name = dvs_event_calibration::utils::find_event_topic(bag_path);
 
     VLOG(1) << "Reading events from: " << event_topic_name;
 

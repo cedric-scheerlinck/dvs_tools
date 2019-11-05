@@ -10,7 +10,7 @@
 
 // dynamic reconfigure
 #include <dynamic_reconfigure/server.h>
-#include <dvs_calibration/dvs_calibrationConfig.h>
+#include <dvs_event_calibration/dvs_event_calibrationConfig.h>
 
 // messages
 #include <dvs_msgs/Event.h>
@@ -30,7 +30,7 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
-namespace dvs_calibration
+namespace dvs_event_calibration
 {
 
 class High_pass_filter
@@ -44,7 +44,7 @@ public:
 private:
   ros::NodeHandle nh_;
 
-  void reconfigureCallback(dvs_calibration::dvs_calibrationConfig &config, uint32_t level);
+  void reconfigureCallback(dvs_event_calibration::dvs_event_calibrationConfig &config, uint32_t level);
 
   void initialise_image_states(const uint32_t& rows, const uint32_t& columns);
   void reset();
@@ -59,8 +59,8 @@ private:
                                           const double& percentage_pixels_to_discard);
 
   // dynamic reconfigure
-  boost::shared_ptr<dynamic_reconfigure::Server<dvs_calibration::dvs_calibrationConfig> > server_;
-  dynamic_reconfigure::Server<dvs_calibration::dvs_calibrationConfig>::CallbackType dynamic_reconfigure_callback_;
+  boost::shared_ptr<dynamic_reconfigure::Server<dvs_event_calibration::dvs_event_calibrationConfig> > server_;
+  dynamic_reconfigure::Server<dvs_event_calibration::dvs_event_calibrationConfig>::CallbackType dynamic_reconfigure_callback_;
 
   // publishers
   image_transport::Publisher intensity_estimate_pub_;

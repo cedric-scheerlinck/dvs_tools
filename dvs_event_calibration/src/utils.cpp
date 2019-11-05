@@ -1,11 +1,11 @@
-#include "pure_event_reconstruction/utils.h"
+#include "dvs_event_calibration/utils.h"
 #include <algorithm>
 #include <string>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <glog/logging.h>
 
-namespace pure_event_reconstruction {
+namespace dvs_event_calibration {
 namespace utils {
 
 std::string find_event_topic(const std::string bag_path)
@@ -89,4 +89,4 @@ std::string fullpath(const std::string wd, const std::string path)
 
 
 } // namespace utils
-} // namespace pure_event_reconstruction
+} // namespace dvs_event_calibration

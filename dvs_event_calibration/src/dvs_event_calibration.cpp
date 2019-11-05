@@ -1,12 +1,12 @@
-#include "pure_event_reconstruction/pure_event_reconstruction.h"
+#include "dvs_event_calibration/dvs_event_calibration.h"
 #include <cstdlib>
 #include <std_msgs/Float32.h>
 #include <glog/logging.h>
-#include "pure_event_reconstruction/utils.h"
+#include "dvs_event_calibration/utils.h"
 
 enum {GAUSSIAN, BILATERAL};
 
-namespace pure_event_reconstruction
+namespace dvs_event_calibration
 {
 
 High_pass_filter::High_pass_filter(ros::NodeHandle & nh, ros::NodeHandle nh_private)
@@ -30,7 +30,7 @@ High_pass_filter::High_pass_filter(ros::NodeHandle & nh, ros::NodeHandle nh_priv
   else
   {
     save_images_ = true;
-    save_dir_ = pure_event_reconstruction::utils::fullpath(working_dir, save_dir);
+    save_dir_ = dvs_event_calibration::utils::fullpath(working_dir, save_dir);
     if (save_dir_.back() != '/')
     {
       save_dir_.append("/");
@@ -48,7 +48,7 @@ High_pass_filter::High_pass_filter(ros::NodeHandle & nh, ros::NodeHandle nh_priv
 
   // setup publishers
   image_transport::ImageTransport it_(nh_);
-  intensity_estimate_pub_ = it_.advertise("pure_event_reconstruction/intensity_estimate", INTENSITY_ESTIMATE_PUB_QUEUE_SIZE);
+  intensity_estimate_pub_ = it_.advertise("dvs_event_calibration/intensity_estimate", INTENSITY_ESTIMATE_PUB_QUEUE_SIZE);
 
   // flags and counters
   initialised_ = false;
@@ -66,7 +66,7 @@ High_pass_filter::High_pass_filter(ros::NodeHandle & nh, ros::NodeHandle nh_priv
 
   // dynamic reconfigure
   dynamic_reconfigure_callback_ = boost::bind(&High_pass_filter::reconfigureCallback, this, _1, _2);
-  server_.reset(new dynamic_reconfigure::Server<pure_event_reconstruction::pure_event_reconstructionConfig>(nh_private));
+  server_.reset(new dynamic_reconfigure::Server<dvs_event_calibration::dvs_event_calibrationConfig>(nh_private));
   server_->setCallback(dynamic_reconfigure_callback_);
 }
 
@@ -380,7 +380,7 @@ void High_pass_filter::minMaxLocRobust(const cv::Mat& image, double* robust_min,
   *robust_max = image_as_row_sorted.at<double>(single_row_idx_max);
 }
 
-void High_pass_filter::reconfigureCallback(pure_event_reconstruction::pure_event_reconstructionConfig &config, uint32_t level)
+void High_pass_filter::reconfigureCallback(dvs_event_calibration::dvs_event_calibrationConfig &config, uint32_t level)
 {
   cutoff_frequency_global_ = config.Cutoff_frequency*2*M_PI;
   cutoff_frequency_per_event_component_ = config.Cutoff_frequency_per_event_component;

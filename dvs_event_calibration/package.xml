@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>dvs_calibration</name>
+  <name>dvs_event_calibration</name>
   <version>0.0.0</version>
-  <description>The dvs_calibration package</description>
+  <description>The dvs_event_calibration package</description>
   <maintainer email="cedric.scheerlinck@anu.edu.au">Cedric Scheerlinck</maintainer>
   <license>GNU GPL</license>
 

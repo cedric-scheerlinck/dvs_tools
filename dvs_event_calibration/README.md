@@ -1,5 +1,4 @@
-
-# DVS Calibration
+# DVS Event Calibration
 
 This package allows calibration from only events.
 
