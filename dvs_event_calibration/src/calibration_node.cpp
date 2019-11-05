@@ -19,41 +19,48 @@ int main(int argc, char* argv[])
   FLAGS_alsologtostderr = true;
   FLAGS_colorlogtostderr = true;
 
-  ros::init(argc, argv, "reconstruction_node");
+  ros::init(argc, argv, "calibration_node");
 
   ros::NodeHandle nh;
   ros::NodeHandle nh_private("~");
 
-  dvs_event_calibration::High_pass_filter high_pass_filter(nh, nh_private);
+  dvs_event_calibration::Calibrator calibrator(nh, nh_private);
 
   std::string bag_path;
   nh_private.getParam("bag_path", bag_path);
 
-  bool realtime = bag_path.empty(); // used to determine whether to use realtime or offline mode
+  bool realtime = false; // bag_path.empty(); // used to determine whether to use realtime or offline mode
 
-  if (realtime)
-  {
-    VLOG(1) << "Running in real-time mode";
-    // subscriber queue size
-    constexpr int EVENT_SUB_QUEUE_SIZE = 1000;
-    ros::Subscriber event_sub = nh.subscribe(
-        "events", EVENT_SUB_QUEUE_SIZE, &dvs_event_calibration::High_pass_filter::eventsCallback,
-        &high_pass_filter);
-
-    ros::spin();
-  }
-  else if (!realtime)
+  if (!realtime)
   {
     std::string working_dir;
+    std::string save_dir;
+  
+    nh_private.getParam("save_dir", save_dir);
     nh_private.getParam("working_dir", working_dir);
-
+    if (save_dir.empty())
+    {
+      LOG(ERROR) << "Must specify valid save_dir!";
+      return -1;
+    }
+    save_dir = dvs_event_calibration::utils::fullpath(working_dir, save_dir);
+    if (save_dir.back() != '/')
+    {
+      save_dir.append("/");
+    }
+    const int dir_err = system((std::string("mkdir -p ") + save_dir).c_str());
+    if (-1 == dir_err)
+    {
+        LOG(ERROR) << "Error creating save directory!";
+        return -1;
+    }
+    
     bag_path = dvs_event_calibration::utils::fullpath(working_dir, bag_path);
-
-    VLOG(1) << "Path to rosbag: " << bag_path;
-
     std::string event_topic_name = dvs_event_calibration::utils::find_event_topic(bag_path);
 
+    VLOG(1) << "Path to rosbag: " << bag_path;
     VLOG(1) << "Reading events from: " << event_topic_name;
+    VLOG(1) << "Saving to: " << save_dir;
 
     // attach relevant callbacks to topics
     rpg_common_ros::BagPlayer player(bag_path);
@@ -62,28 +69,28 @@ int main(int argc, char* argv[])
         {
           dvs_msgs::EventArray::ConstPtr events = msg.instantiate<dvs_msgs::EventArray>();
           CHECK(events);
-          high_pass_filter.eventsCallback(events);
+          calibrator.eventsCallback(events);
         }
     );
-
 //    std::clock_t start;
 //    double duration;
-//
 //    start = std::clock();
-
-
     player.play();
-
-
-//
+    calibrator.save_calibration(save_dir);
 //    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-//
 //    std::cout<< "printf: " << duration <<'\n';
-
     VLOG(1) << "...done!";
-
   }
-
+  else if (realtime)
+  {
+    VLOG(1) << "Running in real-time mode";
+    // subscriber queue size
+    constexpr int EVENT_SUB_QUEUE_SIZE = 1000;
+    ros::Subscriber event_sub = nh.subscribe(
+        "events", EVENT_SUB_QUEUE_SIZE, &dvs_event_calibration::Calibrator::eventsCallback,
+        &calibrator);
+    ros::spin();
+  }
   ros::shutdown();
   return 0;
 }
