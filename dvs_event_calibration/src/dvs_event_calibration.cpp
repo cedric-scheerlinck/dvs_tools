@@ -69,8 +69,26 @@ void Calibrator::save_calibration(std::string save_dir)
   VLOG(1) << cv::sum(mask_on)[0] + cv::sum(mask_off)[0] << " pixel(s) had to be truncated";
   VLOG(1) << "Mean ON / OFF: " << cv::mean(c_on_mat)[0] << " / " << cv::mean(c_off_mat)[0];
   VLOG(1) << cv::sum(mask_on)[0] + cv::sum(mask_off)[0] << " pixel(s) had to be truncated";
-  cv::imwrite(save_dir + "/contrast_threshold_on.bmp", c_on_mat);
-  cv::imwrite(save_dir + "/contrast_threshold_off.bmp", c_off_mat);
+
+  cv::FileStorage on_file(save_dir + "/contrast_threshold_on.xml", cv::FileStorage::WRITE);
+  on_file << "c" << c_on_mat;
+  on_file.release();
+  cv::FileStorage off_file(save_dir + "/contrast_threshold_off.xml", cv::FileStorage::WRITE);
+  off_file << "c" << c_off_mat;
+  off_file.release();
+
+  // sanity check
+  cv::Mat c_on_mat_tmp;
+  cv::FileStorage on_file_tmp(save_dir + "/contrast_threshold_on.xml", cv::FileStorage::READ);
+  on_file_tmp["c"] >> c_on_mat_tmp;
+  on_file_tmp.release();
+  cv::Mat c_off_mat_tmp;
+  cv::FileStorage off_file_tmp(save_dir + "/contrast_threshold_off.xml", cv::FileStorage::READ);
+  off_file_tmp["c"] >> c_off_mat_tmp;
+  off_file_tmp.release();
+
+  cv::imwrite(save_dir + "/vis_on.bmp", c_on_mat_tmp/BASE_ON*127);
+  cv::imwrite(save_dir + "/vis_off.bmp", c_off_mat_tmp/BASE_OFF*127);
 }
 
 } // namespace
