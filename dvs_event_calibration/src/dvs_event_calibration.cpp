@@ -26,22 +26,16 @@ void Calibrator::eventsCallback(const dvs_msgs::EventArray::ConstPtr& msg)
     initialise_image_states(msg->height, msg->width);
   }
 
-  if (msg->events.size() > 0)
+  // count events per pixels with polarity
+  for (auto e : msg->events)
   {
-    // count events per pixels with polarity
-    for (int i = 0; i < msg->events.size(); ++i)
+    if (e.polarity)
     {
-      const int x = msg->events[i].x;
-      const int y = msg->events[i].y;
-      const bool polarity = msg->events[i].polarity;
-      if (polarity)
-      {
-        on_count_mat_.at<double>(y, x) = on_count_mat_.at<double>(y, x) + 1;
-      }
-      else
-      {
-        off_count_mat_.at<double>(y, x) = off_count_mat_.at<double>(y, x) + 1;
-      }
+      on_count_mat_.at<double>(e.y, e.x) = on_count_mat_.at<double>(e.y, e.x) + 1;
+    }
+    else
+    {
+      off_count_mat_.at<double>(e.y, e.x) = off_count_mat_.at<double>(e.y, e.x) + 1;
     }
   }
 }
@@ -70,6 +64,10 @@ void Calibrator::save_calibration(std::string save_dir)
   c_on_mat.setTo(difference_factor*BASE_ON, mask_on);
   c_off_mat.setTo(difference_factor*BASE_OFF, mask_off);
 
+  VLOG(1) << "Total events: " << (cv::sum(on_count_mat_)[0] + cv::sum(off_count_mat_)[0])/1e6 << "M";
+  VLOG(1) << "Mean event count at each pixel is: " << mean_count/1e3 << "k";
+  VLOG(1) << cv::sum(mask_on)[0] + cv::sum(mask_off)[0] << " pixel(s) had to be truncated";
+  VLOG(1) << "Mean ON / OFF: " << cv::mean(c_on_mat)[0] << " / " << cv::mean(c_off_mat)[0];
   VLOG(1) << cv::sum(mask_on)[0] + cv::sum(mask_off)[0] << " pixel(s) had to be truncated";
   cv::imwrite(save_dir + "/contrast_threshold_on.bmp", c_on_mat);
   cv::imwrite(save_dir + "/contrast_threshold_off.bmp", c_off_mat);
