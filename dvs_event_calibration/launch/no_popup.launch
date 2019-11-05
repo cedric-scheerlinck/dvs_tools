@@ -1,11 +1,11 @@
 <launch>
-  <arg name="bag_path" /> 
   <arg name="save_dir" />
+  <arg name="config_filepath" default="/home/cedric/catkin_ws/src/dvs_tools/dvs_event_calibration/config/bags.conf" />
   
   <!-- pure event reconstruction -->
   <node name="calibration_node" pkg="dvs_event_calibration" type="calibration_node" output="screen" args="--v=3">
+    <param name="config_filepath" type="str" value="$(arg config_filepath)" />
     <param name="working_dir" value="$(env PWD)"/>
-    <param name="bag_path" type="str" value="$(arg bag_path)"/>
     <param name="save_dir" type="str" value="$(arg save_dir)"/>
 	
     <remap from="events" to="dvs/events" />

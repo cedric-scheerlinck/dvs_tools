@@ -26,8 +26,6 @@ int main(int argc, char* argv[])
 
   dvs_event_calibration::Calibrator calibrator(nh, nh_private);
 
-  std::string bag_path;
-  nh_private.getParam("bag_path", bag_path);
 
   bool realtime = false; // bag_path.empty(); // used to determine whether to use realtime or offline mode
 
@@ -54,31 +52,38 @@ int main(int argc, char* argv[])
         LOG(ERROR) << "Error creating save directory!";
         return -1;
     }
-    
-    bag_path = dvs_event_calibration::utils::fullpath(working_dir, bag_path);
-    std::string event_topic_name = dvs_event_calibration::utils::find_event_topic(bag_path);
 
-    VLOG(1) << "Path to rosbag: " << bag_path;
-    VLOG(1) << "Reading events from: " << event_topic_name;
-    VLOG(1) << "Saving to: " << save_dir;
-
-    // attach relevant callbacks to topics
-    rpg_common_ros::BagPlayer player(bag_path);
-    player.attachCallbackToTopic(event_topic_name,
-        [&](const rosbag::MessageInstance& msg)
-        {
-          dvs_msgs::EventArray::ConstPtr events = msg.instantiate<dvs_msgs::EventArray>();
-          CHECK(events);
-          calibrator.eventsCallback(events);
-        }
-    );
-//    std::clock_t start;
-//    double duration;
-//    start = std::clock();
-    player.play();
+    std::string config_filepath;
+    nh_private.getParam("config_filepath", config_filepath);
+    std::ifstream infile(config_filepath);
+    std::string bag_path;
+	while (std::getline(infile, bag_path))
+    {
+      bag_path = dvs_event_calibration::utils::fullpath(working_dir, bag_path);
+      std::string event_topic_name = dvs_event_calibration::utils::find_event_topic(bag_path);
+  
+      VLOG(1) << "Path to rosbag: " << bag_path;
+      VLOG(1) << "Reading events from: " << event_topic_name;
+      VLOG(1) << "Saving to: " << save_dir;
+  
+      // attach relevant callbacks to topics
+      rpg_common_ros::BagPlayer player(bag_path);
+      player.attachCallbackToTopic(event_topic_name,
+          [&](const rosbag::MessageInstance& msg)
+          {
+            dvs_msgs::EventArray::ConstPtr events = msg.instantiate<dvs_msgs::EventArray>();
+            CHECK(events);
+            calibrator.eventsCallback(events);
+          }
+      );
+  //    std::clock_t start;
+  //    double duration;
+  //    start = std::clock();
+      player.play();
+    }
     calibrator.save_calibration(save_dir);
-//    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-//    std::cout<< "printf: " << duration <<'\n';
+  //    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+  //    std::cout<< "printf: " << duration <<'\n';
     VLOG(1) << "...done!";
   }
   else if (realtime)
